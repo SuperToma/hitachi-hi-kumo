@@ -11,12 +11,14 @@ We decline any responsibility if it stops working (ex: API changes)
 
 ### Configuration
 
-> Before using this plugin you must:
+> 1/ Before using this plugin you must:
 >  - connect you Hi-Kumo gateway to your local network
 >  - Download and create an account on the Hi-Kumo mobile application (https://play.google.com/store/apps/details?id=com.hitachi.HiKumo&hl=en&gl=US)
 >  - Configure your heat pump element with the mobile application
 
-Once the plugin installed on Jeedom click on "Sync Hi-Kumo equipments" in the plugin configuration:
+2/ In the plugin configuration page of the plugin set your email and password of your Hi-Kumo application.
+
+3/ Click on "Sync Hi-Kumo equipments" in the plugin configuration:
 
 ![Image sync Hi-Kumo](https://github.com/SuperToma/hitachi-hi-kumo/blob/master/img/sync-hi-kumo.jpg?raw=true)
 
