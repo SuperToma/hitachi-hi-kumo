@@ -1,0 +1,36 @@
+{
+	"id" : "hitachihikumo",
+	"name" : "Hitachi Hi-Kumo",
+	"description" : {
+		"en_US": "Allow control the Hitachi Hi-Kumo box with cloud requests",
+		"fr_FR": "Permet de controller la box Hitachi Hi-Kumo à travers le cloud"
+	},
+	"licence" : "AGPL",
+	"author" : "SuperToma",
+	"require" : "4.2",
+	"category" : "wellness",
+	"hasDependency" : false,
+	"hasOwnDeamon" : false,
+	"maxDependancyInstallTime" : 0,
+	"changelog" : "",
+	"documentation" : "",
+	"changelog_beta" : "",
+	"documentation_beta" : "",
+	"link" : {
+		"forum":"https://community.jeedom.com/tag/plugin-hitachihikumo"
+	},
+	"language": [
+		"fr_FR",
+		"en_US"
+	],
+	"compatibility": [
+		"miniplus",
+		"smart",
+		"rpi",
+		"docker",
+		"diy",
+		"mobile",
+		"v4",
+		"atlas"
+	]
+}
