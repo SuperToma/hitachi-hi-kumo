@@ -15,7 +15,6 @@
 * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* * ***************************Includes********************************* */
 require_once __DIR__  . '/../../../../core/php/core.inc.php';
 
 require_once dirname(__FILE__) . '/Hikumo.php';
@@ -30,6 +29,22 @@ class hitachihikumo extends eqLogic {
         $this->hiKumo = new HiKumo();
         $this->hiKumo->setEmail(trim(config::byKey('accountmail', 'hitachihikumo')));
         $this->hiKumo->setPassword(trim(config::byKey('accountpass', 'hitachihikumo')));
+    }
+
+    /**
+     * Used by the cronjob to update the values from Hi-Kumo API
+     * they could have changed with remote control, mobile application, ...
+     */
+    public static function pull()
+    {
+        $devicesInfos = (new hitachihikumo())->hiKumo->getDevices();
+
+        foreach ($devicesInfos as $id => $deviceInfos) {
+            $eqLogic = self::byLogicalId($id, 'hitachihikumo');
+            if($eqLogic instanceof eqLogic && $eqLogic->getIsEnable()) {
+                $eqLogic->createAndUpdateCmd(false, $deviceInfos);
+            }
+        }
     }
 
     public function syncDevices()
@@ -84,47 +99,17 @@ class hitachihikumo extends eqLogic {
 		return $return;
     }
 
-	public static function cron5() {
-		$eqLogics = self::byType('hitachihikumo');
-	}
-
-	// Function launched before the equipment creation
-	public function preInsert() {
-	}
-
-	// Function launched after the equipment creation
-	public function postInsert() {
-	}
-
-	// Function launched before the equipment update
-	public function preUpdate() {
-	}
-
-	// Function launched after the equipment update
-	public function postUpdate() {
-	}
-
-	// Function launched before the equipment save (create or update)
-	public function preSave() {
-	}
-
 	// Function launched after the equipment save (create or update)
 	public function postSave() {
       	if($this->getIsEnable() == 1)
 			self::createAndUpdateCmd();
 	}
 
-	// Executed before equipment deletion
-	public function preRemove() {
-	}
-
-	// Executed after equipment deletion
-	public function postRemove() {
-	}
-
-    public function createAndUpdateCmd($bCreateCmd = true) {
+    public function createAndUpdateCmd($createCmd = true, $deviceInfos = []) {
         $this->__construct(); // WFT, Reflection ?
-        $deviceInfos = $this->hiKumo->getDeviceById($this->getLogicalId());
+        if(empty($deviceInfos)) {
+            $deviceInfos = $this->hiKumo->getDeviceById($this->getLogicalId());
+        }
 
         // Create/update INFO commands
         $infosCommands = [
@@ -170,7 +155,7 @@ class hitachihikumo extends eqLogic {
 
         foreach($infosCommands as $commandKey => $infosCommand) {
             if(isset($deviceInfos[$commandKey])) {
-                if($bCreateCmd) {
+                if($createCmd) {
                     self::_saveEqLogic($commandKey, $infosCommand); // create cmd INFO
                 }
 
@@ -185,7 +170,7 @@ class hitachihikumo extends eqLogic {
         }
 
         // Create/update ACTION commands
-        if($bCreateCmd) {
+        if($createCmd) {
             $cmdActions = [
                 'on' => [
                     'type' => 'action', 'subType' => 'other', 'name' => 'On',

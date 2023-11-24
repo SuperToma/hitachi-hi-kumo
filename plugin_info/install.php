@@ -17,16 +17,37 @@
 
 require_once dirname(__FILE__) . '/../../../core/php/core.inc.php';
 
-// Launched after installation
 function hitachihikumo_install() {
-
+    $cron = cron::byClassAndFunction('hitachihikumo', 'pull');
+    if (!is_object($cron)) {
+        $cron = new cron();
+        $cron->setClass('hitachihikumo');
+        $cron->setFunction('pull');
+        $cron->setEnable(1);
+        $cron->setDeamon(0);
+        $cron->setSchedule('* * * * *');
+        $cron->setTimeout(2);
+        $cron->save();
+    }
 }
 
-// Launched after an application update
 function hitachihikumo_update() {
+    $cron = cron::byClassAndFunction('hitachihikumo', 'pull');
+    if (!is_object($cron)) {
+        $cron = new cron();
+        $cron->setClass('hitachihikumo');
+        $cron->setFunction('pull');
+        $cron->setEnable(1);
+        $cron->setDeamon(0);
+        $cron->setSchedule('* * * * *');
+        $cron->setTimeout(30);
+        $cron->save();
+    }
 }
 
-// Launched we the plugin is removed
 function hitachihikumo_remove() {
-
+    $cron = cron::byClassAndFunction('hitachihikumo', 'pull');
+    if (is_object($cron)) {
+        $cron->remove();
+    }
 }

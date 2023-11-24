@@ -22,7 +22,14 @@ class HiKumo {
 
     public const AIRCLOUD_API_URL ='https://ha117-1.overkiz.com/enduser-mobile-web/enduserAPI';
     public const AVAILABLE_MODES = ['cooling', 'heating', 'auto', 'fan', 'dehumidify', 'circulator'];
-    public const AVAILABLE_FAN_SPEED = ['auto', 'silent', 'lo', 'med', 'hi'];
+    // fan values: API pull => API push
+    public const AVAILABLE_FAN_SPEED = [
+        'auto' => 'auto',
+        'silent' => 'silent',
+        'low' => 'lo',
+        'medium' => 'med',
+        'high' => 'hi'
+    ];
 
     private string $token = '';
 
@@ -85,7 +92,7 @@ class HiKumo {
                         }
                         break;
                     case 'ovp:FanSpeedState': // auto|silent|lo|med|high
-                        $devices[$deviceId]['fanSpeed'] = $state['value'];
+                        $devices[$deviceId]['fanSpeed'] = self::AVAILABLE_FAN_SPEED[$state['value']];
                         break;
                     case 'core:TargetTemperatureState':
                         $devices[$deviceId]['targetTemperature'] = $state['value'];
