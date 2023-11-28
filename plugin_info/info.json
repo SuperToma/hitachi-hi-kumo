@@ -2,8 +2,8 @@
 	"id" : "hitachihikumo",
 	"name" : "Hitachi Hi-Kumo",
 	"description" : {
-		"en_US": "Allow control the Hitachi Hi-Kumo box with cloud requests",
-		"fr_FR": "Permet de controller la box Hitachi Hi-Kumo à travers le cloud"
+		"en_US": "This plugin allows you to control the indoor units of a Hitachi heat pump. You need first to configure your units in the mobile application Hi-Kumo.",
+		"fr_FR": "Ce plugin permet de controller les unités intérieures d'une pompe à chaleur Hitachi. Il est nécessaire d'avoir au préalable configuré les éléments dans l'application mobile Hi-Kumo."
 	},
 	"licence" : "AGPL",
 	"author" : "SuperToma",
@@ -11,13 +11,16 @@
 	"category" : "wellness",
 	"hasDependency" : false,
 	"hasOwnDeamon" : false,
+	"issue": "https://github.com/SuperToma/hitachi-hi-kumo/issues",
 	"maxDependancyInstallTime" : 0,
 	"changelog" : "",
 	"documentation" : "",
 	"changelog_beta" : "",
 	"documentation_beta" : "",
 	"link" : {
-		"forum":"https://community.jeedom.com/t/hitachi-hi-kumo-pac-climatisation-air-air/116200"
+		"community": "https://community.jeedom.com/t/hitachi-hi-kumo-pac-climatisation-air-air/116200",
+		"forum":"https://community.jeedom.com/t/hitachi-hi-kumo-pac-climatisation-air-air/116200",
+		"github": "https://github.com/SuperToma/hitachi-hi-kumo"
 	},
 	"language": [
 		"fr_FR",
