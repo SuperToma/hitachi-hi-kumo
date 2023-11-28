@@ -3,7 +3,7 @@
 	"name" : "Hitachi Hi-Kumo",
 	"description" : {
 		"en_US": "This plugin allows you to control the indoor units of a Hitachi heat pump. You need first to configure your units in the mobile application Hi-Kumo.",
-		"fr_FR": "Ce plugin permet de controller les unités intérieures d'une pompe à chaleur Hitachi. Il est nécessaire d'avoir au préalable configuré les éléments dans l'application Hi-Kumo."
+		"fr_FR": "Ce plugin permet de controller les unités intérieures d'une pompe à chaleur Hitachi. Il est nécessaire d'avoir au préalable configuré les éléments dans l'application mobile Hi-Kumo."
 	},
 	"licence" : "AGPL",
 	"author" : "SuperToma",
