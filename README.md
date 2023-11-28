@@ -20,11 +20,11 @@ We decline any responsibility if it stops working (ex: API changes)
 
 3/ Click on "Sync Hi-Kumo equipments" in the plugin configuration:
 
-![Image sync Hi-Kumo](https://github.com/SuperToma/hitachi-hi-kumo/blob/master/img/sync-hi-kumo.jpg?raw=true)
+![Image sync Hi-Kumo](https://github.com/SuperToma/hitachi-hi-kumo/blob/master/docs/images/sync-hi-kumo.jpg?raw=true)
 
 Select an element, set it as visible and choose a parent,
 It must look like:
-![Image dashboard preview](https://github.com/SuperToma/hitachi-hi-kumo/blob/master/img/dashboard-preview.jpg?raw=true)
+![Image dashboard preview](https://github.com/SuperToma/hitachi-hi-kumo/blob/master/docs/images/hitachihikumo_screnshot1.jpg?raw=true)
 
 # FAQ
 - I don't find any elements
