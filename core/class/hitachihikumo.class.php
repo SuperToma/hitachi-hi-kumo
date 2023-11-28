@@ -35,7 +35,7 @@ class hitachihikumo extends eqLogic {
      * Used by the cronjob to update the values from Hi-Kumo API
      * they could have changed with remote control, mobile application, ...
      */
-    public static function pull()
+    public static function cron()
     {
         $devicesInfos = (new hitachihikumo())->hiKumo->getDevices();
 
@@ -70,36 +70,33 @@ class hitachihikumo extends eqLogic {
         }
     }
 
-	public static function templateWidget() {
-		$return = array('action' => array('other' => array()));
-		$return['action']['other']['boutonOnOff'] = array(
-			'template' => 'tmplicon',
-			'display' => array(
-				'#icon#' => '<i class=\'icon jeedom-prise\'></i>',
-			),
-			'replace' => array(
-				'#_icon_on_#' => '<i class=\'icon jeedom-prise\'></i>',
-				'#_icon_off_#' => '<i class=\'icon fas fa-times\'></i>',
-				'#_time_widget_#' => '0'
-				)
-			);
+	public static function templateWidget()
+    {
+		$return = ['action' => ['other' => []]];
 
-		$return['action']['other']['pump'] = array(
+		$return['action']['other']['boutonOnOff'] = [
 			'template' => 'tmplicon',
-			'display' => array(
-				'#icon#' => '<i class=\'icon fas fa-undo\'></i>',
-			),
-			'replace' => array(
-				'#_icon_on_#' => '<i class=\'icon fas fa-undo\'></i>',
-				'#_icon_off_#' => '<i class=\'icon fas fa-times\'></i>',
-				'#_time_widget_#' => '0'
-				)
-			);
+			'display' => ['#icon#' => '<i class="icon jeedom-prise"></i>'],
+			'replace' => [
+				'#_icon_on_#' => '<i class="icon jeedom-prise"></i>',
+				'#_icon_off_#' => '<i class="icon fas fa-times"></i>',
+				'#_time_widget_#' => '0',
+            ],
+        ];
+
+		$return['action']['other']['ecoOnOff'] = [
+			'template' => 'tmplicon',
+			'display' => ['#icon#' => '<img src="/plugins/hitachihikumo/img/eco-on.png" style="margin-bottom: 20px" />'],
+			'replace' => [
+				'#_icon_on_#' => '<img src="/plugins/hitachihikumo/img/eco-on.png" style="margin-bottom: 20px" />',
+				'#_icon_off_#' => '<img src="/plugins/hitachihikumo/img/eco-off.png" style="margin-bottom: 20px" />',
+				'#_time_widget_#' => '0',
+            ],
+        ];
 
 		return $return;
     }
 
-	// Function launched after the equipment save (create or update)
 	public function postSave() {
       	if($this->getIsEnable() == 1)
 			self::createAndUpdateCmd();
@@ -124,6 +121,13 @@ class hitachihikumo extends eqLogic {
                 'order' => 5, 'visible' => 0, 'historized' => 0,
                 'display' => ['forceReturnLineBefore' => 0],
                 'generic_type' => 'ENERGY_STATE',
+                'configuration' => ['repeatEventManagement' => 'never'],
+                'template' => ['dashboard' => 'default']
+            ],
+            'ecoMode' => [
+                'type' => 'info', 'subType' => 'binary', 'name' => 'Eco mode',
+                'order' => 6, 'visible' => 0, 'historized' => 0,
+                'display' => ['forceReturnLineBefore' => 0],
                 'configuration' => ['repeatEventManagement' => 'never'],
                 'template' => ['dashboard' => 'default']
             ],
@@ -165,6 +169,10 @@ class hitachihikumo extends eqLogic {
                 if($commandKey === 'state') {
                     $deviceInfos[$commandKey] = strtolower($deviceInfos[$commandKey]) === 'on' ? 1 : 0;
                 }
+                if($commandKey === 'ecoMode') {
+                    $deviceInfos[$commandKey] = $deviceInfos[$commandKey] ? 1 : 0;
+                }
+
                 $this->checkAndUpdateCmd($commandKey, $deviceInfos[$commandKey]); // update with current value
             }
         }
@@ -183,10 +191,24 @@ class hitachihikumo extends eqLogic {
                 'off' => [
                     'type' => 'action', 'subType' => 'other', 'name' => 'Off',
                     'order' => 3, 'visible' => 1, 'historized' => 0,
-                    'display' => [ 'forceReturnLineBefore' => 0, 'forceReturnLineAfter' => 1],
+                    'display' => [ 'forceReturnLineBefore' => 0, 'forceReturnLineAfter' => 0],
                     'value' => $this->getCmd(null, 'state')->getId(),
                     'generic_type' => 'ENERGY_OFF',
                     'template' => ['dashboard' => 'hitachihikumo::boutonOnOff', 'mobile' => 'hitachihikumo::boutonOnOff']
+                ],
+                'ecoOn' => [
+                    'type' => 'action', 'subType' => 'other', 'name' => 'Eco on',
+                    'order' => 4, 'visible' => 1, 'historized' => 0,
+                    'display' => ['forceReturnLineBefore' => 0, 'forceReturnLineAfter' => 0],
+                    'value' => $this->getCmd(null, 'ecoMode')->getId(),
+                    'template' => ['dashboard' => 'hitachihikumo::ecoOnOff', 'mobile' => 'hitachihikumo::ecoOnOff']
+                ],
+                'ecoOff' => [
+                    'type' => 'action', 'subType' => 'other', 'name' => 'Eco off',
+                    'order' => 4, 'visible' => 1, 'historized' => 0,
+                    'display' => [ 'forceReturnLineBefore' => 0, 'forceReturnLineAfter' => 0],
+                    'value' => $this->getCmd(null, 'ecoMode')->getId(),
+                    'template' => ['dashboard' => 'hitachihikumo::ecoOnOff', 'mobile' => 'hitachihikumo::ecoOnOff']
                 ],
                 'setTemperature' => [
                     'type' => 'action', 'subType' => 'slider', 'name' => 'Target temperature',
@@ -285,6 +307,12 @@ class hitachihikumo extends eqLogic {
                 break;
             case 'off':
                 $this->hiKumo->switchOff($this->getLogicalId());
+                break;
+            case 'ecoOn':
+                $this->hiKumo->setEco(true);
+                break;
+            case 'ecoOff':
+                $this->hiKumo->setEco(false);
                 break;
             case 'setTemperature':
                 $this->hiKumo->setTemperature($this->getLogicalId(), $value);

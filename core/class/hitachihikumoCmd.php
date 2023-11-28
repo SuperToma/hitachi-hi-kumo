@@ -4,8 +4,6 @@ class hitachihikumoCmd extends cmd {
     public function execute($_options = [])
     {
         $eqLogic = $this->getEqLogic();
-        log::add("hitachihikumo", "debug", "LogicalId action => " . $this->getLogicalId());
-        Log::add('hitachihikumo', 'debug', '$_options[] done: ' . json_encode($_options));
 
         if($eqLogic->getIsEnable() == 0)
             return;
@@ -15,12 +13,20 @@ class hitachihikumoCmd extends cmd {
                 $eqLogic->createAndUpdateCmd(false);
                 break;
             case 'on':
-                $eqLogic->sendCmd('on');
                 $eqLogic->checkAndUpdateCmd('state', 1);
+                $eqLogic->sendCmd('on');
                 break;
             case 'off':
-                $eqLogic->sendCmd('off');
                 $eqLogic->checkAndUpdateCmd('state', 0);
+                $eqLogic->sendCmd('off');
+                break;
+            case 'ecoOn':
+                $eqLogic->checkAndUpdateCmd('ecoMode', 1);
+                $eqLogic->sendCmd('ecoOn');
+                break;
+            case 'ecoOff':
+                $eqLogic->checkAndUpdateCmd('ecoMode', 0);
+                $eqLogic->sendCmd('ecoOff');
                 break;
             case 'setTemperature':
                 $temperature = $_options['text'] ?? $_options['slider']; // scenario compatibility
@@ -40,10 +46,10 @@ class hitachihikumoCmd extends cmd {
                 $eqLogic->sendCmd('setFanSpeed', $fanSpeed);
                 break;
             default:
-                throw new Error('Invalid command to execute: '.print_r($_options, true));
+                throw new Error('Command not implemented: '.print_r($_options, true));
                 log::add(
                     'hitachihikumo',
-                    'warn',
+                    'error',
                     'Error while executing cmd '.$this->getLogicalId().'('.print_r($_options, true).')'
                 );
                 break;

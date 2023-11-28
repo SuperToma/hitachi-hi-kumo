@@ -15,7 +15,7 @@
 * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
 */
 
-require_once __DIR__  . '/../../../../core/php/core.inc.php';
+require_once __DIR__ .'/../../../../core/php/core.inc.php';
 
 
 class HiKumo {
@@ -30,8 +30,6 @@ class HiKumo {
         'medium' => 'med',
         'high' => 'hi'
     ];
-
-    private string $token = '';
 
     private string $email = '';
 
@@ -91,6 +89,9 @@ class HiKumo {
                             $devices[$deviceId]['mode'] = 'auto';
                         }
                         break;
+                    case 'ovp:OutdoorTemperatureState':
+                        $devices[$deviceId]['ecoMode'] = $state['value'];
+                        break;
                     case 'ovp:FanSpeedState': // auto|silent|lo|med|high
                         $devices[$deviceId]['fanSpeed'] = self::AVAILABLE_FAN_SPEED[$state['value']];
                         break;
@@ -104,6 +105,16 @@ class HiKumo {
             }
         }
 
+        // Eco mode
+        $preferences = $this->queryAPI('/enduser/preferences');
+        foreach($preferences as $preference) {
+            switch ($preference['name']) {
+                case 'pref.gogreen':
+                    $devices[$deviceId]['ecoMode'] = $preference['value'] === 'true';
+                    cache::set('hitachihikumo::ecoId', $preference['oid']);
+                    break;
+            }
+        }
         return $devices;
     }
 
@@ -123,6 +134,22 @@ class HiKumo {
         return $this->sendCommand(
             'setMainOperation', ['off'], $device['url'], 'Set unit ('.$device['label'].') to OFF'
         );
+    }
+
+    public function setEco(bool $onOff): bool
+    {
+        $ecoMode = $onOff ? 'true' : 'false';
+        $ecoId = cache::byKey('hitachihikumo::ecoId')->getValue('');
+        $url = '/enduser/preferences/'.$ecoId.'/'.$ecoMode;
+
+        $result = $this->queryAPI($url, 'PUT');
+
+        if(empty($result)) {
+            return true;
+        }
+
+        log::add('hitachihikumo', 'error', 'PUT '.$url.' failed: '.print_r($result, true));
+
     }
 
     public function setTemperature(string $deviceId, int $value): bool
@@ -212,15 +239,21 @@ class HiKumo {
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_HEADER  ,1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-            'userId' => $this->email, 'userPassword' => $this->password]
-        ));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded; charset=UTF-8']);
+            'userId' => $this->email, 'userPassword' => $this->password,
+        ]));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/x-www-form-urlencoded; charset=UTF-8',
+        ]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLINFO_HEADER_OUT, true); // enable tracking
 
+        log::add('hitachihikumo', 'debug', '>>> POST /login (requesting a token) with email: '.$this->email);
         $response = curl_exec($ch);
+
         curl_close ($ch);
 
         list($headers, $content) = explode("\r\n\r\n", $response, 2);
+        log::add('hitachihikumo', 'debug', '<<< POST /login: '.$content);
 
         $contentData = json_decode($content);
 
@@ -230,8 +263,8 @@ class HiKumo {
         }
 
         if(isset($contentData->errorCode) && $contentData->errorCode === 'AUTHENTICATION_ERROR') {
-            log::add('hitachihikumo', 'error', 'POST '.$url.', authentication invalid credentials: '.$content);
-            die('Hitachi Hi-Kumo authentication failed, login or password incorrect');
+            log::add('hitachihikumo', 'error', 'POST '.$url.', authentication invalid credentials (OR IP BANNED): '.$content);
+            die('Hitachi Hi-Kumo authentication failed, login or password incorrect (OR IP BANNED)');
         }
 
         if(!isset($contentData->success) || $contentData->success !== true) {
@@ -240,22 +273,29 @@ class HiKumo {
         }
 
         preg_match('/JSESSIONID=\K[0-9A-F]+/', $headers, $token);
+        log::add('hitachihikumo', 'debug', '<<< POST /login new token: '.$token[0]);
+
 
         if(!empty($token)) {
-            $this->token = $token[0];
+            cache::set('hitachihikumo::token', $token[0]);
         } else {
             log::add('hitachihikumo', 'error', 'POST '.$url.', authentication failed (empty token) '.$content);
             die('Authentication failed (empty token): '.$content);
         }
     }
 
-    protected function queryAPI(string $endpoint, string $method = 'GET', $body = null): array
-    {
-        if(empty($this->token)) {
+    protected function queryAPI(
+        string $endpoint,
+        string $method = 'GET',
+        $body = null,
+        bool $requestNewToken = false
+    ): array {
+        $token = cache::byKey('hitachihikumo::token')->getValue(null);
+        if(empty($token) || $requestNewToken === true) {
             $this->requestToken();
         }
 
-        $headers = ['Cookie: JSESSIONID='.$this->token];
+        $headers = ['Cookie: JSESSIONID='.$token];
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, self::AIRCLOUD_API_URL.$endpoint);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -263,14 +303,21 @@ class HiKumo {
         if($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, 1);
             $headers[] = 'Content-Type: application/json; charset=UTF-8';
+        } elseif ($method === 'PUT') {
+            curl_setopt($ch, CURLOPT_PUT, true);
+            $headers[] = 'Content-Type: application/json; charset=UTF-8';
         }
+
         if(!is_null($body)) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         }
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
+        log::add('hitachihikumo', 'debug', '>>> '.$method.' '.$endpoint.(!is_null($body) ?? ' : '.print_r($body, true)));
         $content = curl_exec($ch);
+        log::add('hitachihikumo', 'debug', '<<< '.$method.' '.$endpoint.' : '.$content);
+
         curl_close ($ch);
 
         $contentData = json_decode($content, true);
@@ -280,9 +327,20 @@ class HiKumo {
             die($method.' '.$endpoint.', invalid JSON response from AirCloud server: '.$content);
         }
 
-        if(isset($content->errorCode)) {
-            log::add('hitachihikumo', 'error', $method.' '.$endpoint.', error: '.$content);
-            die($method.' '.$endpoint.' error: '.$content);
+        if(isset($contentData['errorCode'])) {
+            switch ($contentData['errorCode']) {
+                case 'RESOURCE_ACCESS_DENIED':
+                    if($requestNewToken === false) {
+                        $contentData = $this->queryAPI($endpoint, $method, $body, true);
+                    } else {
+                        log::add('hitachihikumo', 'error', $method.' '.$endpoint.' failed even with a new token: '.$content);
+                        die($method.' '.$endpoint.' failed even with a new token: '.$content);
+                    }
+                    break;
+                default:
+                    log::add('hitachihikumo', 'error', $method.' '.$endpoint.', error: '.$content);
+                    die($method.' '.$endpoint.' error: '.$content);
+            }
         }
 
         return $contentData;

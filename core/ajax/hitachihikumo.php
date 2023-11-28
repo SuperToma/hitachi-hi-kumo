@@ -32,7 +32,7 @@ try {
         ajax::success(sync());
     }
   
-    throw new Exception(__('Aucune méthode correspondante à', __FILE__) . ' : ' . init('action'));
+    throw new Exception(__('No method associated to ', __FILE__) . ' : ' . init('action'));
 }
 catch (Exception $e) {
     ajax::error(displayException($e), $e->getCode());
