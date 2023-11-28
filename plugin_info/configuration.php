@@ -22,24 +22,21 @@ if (!isConnect()) {
   die();
 }
 
-
-// Vérifie si docker signal actif
 ?>
 <form class="form-horizontal">
+    Hi-Kumo credentials:
   <fieldset>
     <div class="form-group">
-      <label class="col-md-4 control-label">{{Adresse mail}}
-        <sup><i class="fas fa-question-circle tooltips" title="{{Renseignez l'adresse mail ici}}"></i></sup>
+      <label class="col-sm-2 control-label">{{Email address}}
       </label>
-      <div class="col-md-4">
+      <div class="col-sm-4">
         <input class="configKey form-control" data-l1key="accountmail" autocomplete="off" />
       </div>
     </div>
     <div class="form-group">
-      <label class="col-md-4 control-label">{{Mot de passe}}
-        <sup><i class="fas fa-question-circle tooltips" title="{{Renseignez le mot de passe ici}}"></i></sup>
+      <label class="col-sm-2 control-label">{{Password}}
       </label>
-      <div class="col-md-4">
+      <div class="col-sm-4">
         <input class="configKey form-control" data-l1key="accountpass" id="accountpass" type="password" autocomplete="off" /> 
         <span toggle="#accountpass" class="fa fa-fw fa-eye field-icon toggle-password"></span>
       </div>

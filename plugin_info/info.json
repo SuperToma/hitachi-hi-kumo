@@ -16,7 +16,7 @@
 	"changelog" : "",
 	"documentation" : "https://github.com/SuperToma/hitachi-hi-kumo",
 	"changelog_beta" : "",
-	"documentation_beta" : "",
+	"documentation_beta" : "https://github.com/SuperToma/hitachi-hi-kumo/tree/develop",
 	"link" : {
 		"community": "https://community.jeedom.com/t/hitachi-hi-kumo-pac-climatisation-air-air/116200",
 		"forum":"https://community.jeedom.com/t/hitachi-hi-kumo-pac-climatisation-air-air/116200",
