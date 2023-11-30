@@ -31,9 +31,9 @@ class HiKumo {
         'high' => 'hi'
     ];
 
-    private string $email = '';
+    private $email = '';
 
-    private string $password = '';
+    private $password = '';
 
     public function setEmail(string $email): HiKumo
     {
@@ -150,6 +150,7 @@ class HiKumo {
 
         log::add('hitachihikumo', 'error', 'PUT '.$url.' failed: '.print_r($result, true));
 
+        return false;
     }
 
     public function setTemperature(string $deviceId, int $value): bool
