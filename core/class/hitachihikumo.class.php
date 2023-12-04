@@ -35,7 +35,7 @@ class hitachihikumo extends eqLogic {
      * Used by the cronjob to update the values from Hi-Kumo API
      * they could have changed with remote control, mobile application, ...
      */
-    public static function cron()
+    public static function cron5()
     {
         $devicesInfos = (new hitachihikumo())->hiKumo->getDevices();
 
@@ -66,6 +66,7 @@ class hitachihikumo extends eqLogic {
             $eqlogic->setLogicalId($id);
             $eqlogic->setEqType_name('hitachihikumo');
             $eqlogic->setConfiguration('url', $device['url']);
+            $eqlogic->setConfiguration('type', $device['type']);
             $eqlogic->save();
         }
     }
@@ -137,37 +138,40 @@ class hitachihikumo extends eqLogic {
                 'display' => ['forceReturnLineBefore' => 0],
                 'template' => ['dashboard' => 'default'], 'unite' => '°C'
             ],
-            'roomTemperature' => [
-                'type' => 'info', 'subType' => 'numeric', 'name' => 'Room temperature',
+            'currentTemperature' => [
+                'type' => 'info', 'subType' => 'numeric', 'name' => 'Current temperature',
                 'order' => 15, 'visible' => 1, 'historized' => 1,
                 'display' => ['forceReturnLineBefore' => 0],
                 'template' => ['dashboard' => 'line'], 'unite' => '°C'
             ],
-            'fanSpeed' => [
-                'type' => 'info', 'subType' => 'string', 'name' => 'Fan speed',
-                'order' => 20, 'visible' => 0, 'historized' => 0,
-                'display' => ['forceReturnLineBefore' => 0],
-                'template' => ['dashboard' => 'default']
-            ],
-            'mode' => [
+        ];
+
+        // Fan speed and mode only on splits (for the moment)
+        if($deviceInfos['type'] === 'HitachiAirToAirHeatPump') {
+            $infosCommands['mode'] = [
                 'type' => 'info', 'subType' => 'string', 'name' => 'Mode',
                 'order' => 25, 'visible' => 0, 'historized' => 0,
                 'display' => ['forceReturnLineBefore' => 0],
                 'template' => ['dashboard' => 'default']
-            ],
-        ];
+            ];
+            $infosCommands['fanSpeed'] = [
+                'type' => 'info', 'subType' => 'string', 'name' => 'Fan speed',
+                'order' => 20, 'visible' => 0, 'historized' => 0,
+                'display' => ['forceReturnLineBefore' => 0],
+                'template' => ['dashboard' => 'default']
+            ];
+        }
 
         foreach($infosCommands as $commandKey => $infosCommand) {
             if(isset($deviceInfos[$commandKey])) {
                 if($createCmd) {
                     self::_saveEqLogic($commandKey, $infosCommand); // create cmd INFO
                 }
-
                 if($commandKey === 'status') {
-                    $deviceInfos[$commandKey] = $deviceInfos[$commandKey] === 'available' ? 1 : 0;
+                    $deviceInfos[$commandKey] = in_array(strtolower($deviceInfos[$commandKey]), ['available', 'run']) ? 1 : 0;
                 }
                 if($commandKey === 'state') {
-                    $deviceInfos[$commandKey] = strtolower($deviceInfos[$commandKey]) === 'on' ? 1 : 0;
+                    $deviceInfos[$commandKey] = in_array(strtolower($deviceInfos[$commandKey]), ['on', 'run']) ? 1 : 0;
                 }
                 if($commandKey === 'ecoMode') {
                     $deviceInfos[$commandKey] = $deviceInfos[$commandKey] ? 1 : 0;
@@ -219,23 +223,27 @@ class hitachihikumo extends eqLogic {
                     'configuration' => ['minValue' => 16, 'maxValue' => 30],
                     'template' => ['dashboard' => 'hitachihikumo::setTemperature', 'mobile' => 'hitachihikumo::setTemperature']
                 ],
-                'setMode' => [
+            ];
+
+            // Fan speed only on splits (for the moment)
+            if($deviceInfos['type'] === 'HitachiAirToAirHeatPump') {
+                $cmdActions['setMode'] = [
                     'type' => 'action', 'subType' => 'select', 'name' => 'Mode',
                     'order' => 35, 'visible' => 1, 'historized' => 0,
                     'display' => ['forceReturnLineBefore' => 0],
                     'configuration' => ['listValue' => 'auto|Automatic;cooling|Cooling;heating|Heating;fan|Fan;dehumidify|Dehumidify;circulator|Circulator'],
                     'value' => $this->getCmd(null, 'mode')->getId(),
                     'template' => ['dashboard' => 'default']
-                ],
-                'setFanSpeed' => [
+                ];
+                $cmdActions['setFanSpeed'] = [
                     'type' => 'action', 'subType' => 'select', 'name' => 'Fan speed',
                     'order' => 40, 'visible' => 1, 'historized' => 0,
                     'display' => ['forceReturnLineBefore' => 1, 'forceReturnLineAfter' => 1],
                     'configuration' => ['listValue' => 'auto|Automatic;silent|Silent;lo|Low;med|Medium;hi|High'],
                     'value' => $this->getCmd(null, 'fanSpeed')->getId(),
                     'template' => ['dashboard' => 'default']
-                    ],
-            ];
+                ];
+            }
 
             foreach($cmdActions as $keyAction => $action) {
                 self::_saveEqLogic($keyAction, $action);
@@ -303,10 +311,22 @@ class hitachihikumo extends eqLogic {
 
         switch ($cmd) {
             case 'on':
-                $this->hiKumo->switchOn($this->getLogicalId());
+                if($this->getConfiguration('type') === 'HitachiDHW') {
+                    $this->hiKumo->switchOnDHW($this->getLogicalId());
+                } elseif($this->getConfiguration('type') === 'HitachiAirToWaterHeatingZone') {
+                    $this->hiKumo->switchOnHeatZone($this->getLogicalId());
+                } else { // Splits
+                    $this->hiKumo->switchOn($this->getLogicalId());
+                }
                 break;
             case 'off':
-                $this->hiKumo->switchOff($this->getLogicalId());
+                if($this->getConfiguration('type') === 'HitachiDHW') {
+                    $this->hiKumo->switchOffDHW($this->getLogicalId());
+                } elseif($this->getConfiguration('type') === 'HitachiAirToWaterHeatingZone') {
+                    $this->hiKumo->switchOffHeatZone($this->getLogicalId());
+                } else { // Splits
+                    $this->hiKumo->switchOff($this->getLogicalId());
+                }
                 break;
             case 'ecoOn':
                 $this->hiKumo->setEco(true);

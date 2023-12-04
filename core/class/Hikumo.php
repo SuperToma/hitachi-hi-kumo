@@ -61,45 +61,57 @@ class HiKumo {
 
         foreach($hitachiDevices as $hitachiDevice) {
             // Don't need the box infos and not compatibles modules
-            if($hitachiDevice['definition']['widgetName'] !== 'HitachiAirToAirHeatPump') {
+            if(
+                !in_array($hitachiDevice['definition']['widgetName'], [
+                    'HitachiAirToAirHeatPump', // air/air: split
+                    'HitachiDHW', // air/water: Domestic Hot Water (boiler)
+                    'HitachiAirToWaterHeatingZone', // air/water: radiators, floor heatings, ...
+                ])
+            ) {
                 continue;
             }
 
             $deviceId = $hitachiDevice['oid'];
             $devices[$deviceId]['label'] = $hitachiDevice['label'];
             $devices[$deviceId]['url'] = $hitachiDevice['deviceURL'];
+            $devices[$deviceId]['type'] = $hitachiDevice['definition']['widgetName'];
 
             foreach($hitachiDevice['states'] as $state) {
                 switch($state['name']) {
-                    case 'core:StatusState': //
+                    case 'core:StatusState': // air/air splits
+                    case 'modbus:StatusDHWState': // air/water DHW run|stop
+                    case 'modbus:ControlCircuit1State': // air/water zones run|stop
+                    case 'modbus:ControlCircuit2State': // air/water zones run|stop
                         $devices[$deviceId]['status'] = $state['value'];
                         break;
-                    case 'ovp:MainOperationState': // on|off
+                    case 'ovp:MainOperationState':
+                    case 'modbus:ControlDHWState':
+                    case 'modbus:StatusCircuit1State':
+                    case 'modbus:StatusCircuit2State':
                         $devices[$deviceId]['state'] = $state['value'];
                         break;
-                    case 'core:AutoManuModeState': // auto|manu
-                        $devices[$deviceId]['autoManuModeState'] = $state['value'];
+                    case 'core:TargetTemperatureState':
+                    case 'modbus:ControlDHWSettingTemperatureState':
+                    case 'modbus:ThermostatSettingStatusZone1State':
+                    case 'modbus:ThermostatSettingStatusZone2State':
+                        $devices[$deviceId]['targetTemperature'] = $state['value'];
                         break;
-                    case 'core:HolidaysModeState': // on|off
-                        $devices[$deviceId]['HolidaysModeState'] = $state['value'];
+                    case 'ovp:RoomTemperatureState':
+                    case 'core:DHWTemperatureState':
+                    case 'modbus:RoomAmbientTemperatureStatusZone1State':
+                    case 'modbus:RoomAmbientTemperatureStatusZone2State':
+                        $devices[$deviceId]['currentTemperature'] = $state['value'];
                         break;
                     case 'ovp:ModeChangeState': // cooling|heating|auto cooling|auto heating|fan|dehumidify|circulator
+                    case 'modbus:DHWModeState': // standard|high demand
                         $devices[$deviceId]['mode'] = strtolower($state['value']);
+
                         if(stripos($devices[$deviceId]['mode'], 'auto') !== false) {
                             $devices[$deviceId]['mode'] = 'auto';
                         }
                         break;
-                    case 'ovp:OutdoorTemperatureState':
-                        $devices[$deviceId]['ecoMode'] = $state['value'];
-                        break;
                     case 'ovp:FanSpeedState': // auto|silent|lo|med|high
                         $devices[$deviceId]['fanSpeed'] = self::AVAILABLE_FAN_SPEED[$state['value']];
-                        break;
-                    case 'core:TargetTemperatureState':
-                        $devices[$deviceId]['targetTemperature'] = $state['value'];
-                        break;
-                    case 'ovp:RoomTemperatureState':
-                        $devices[$deviceId]['roomTemperature'] = $state['value'];
                         break;
                 }
             }
@@ -107,14 +119,21 @@ class HiKumo {
 
         // Eco mode
         $preferences = $this->queryAPI('/enduser/preferences');
+
+        $ecoMode = false;
         foreach($preferences as $preference) {
             switch ($preference['name']) {
                 case 'pref.gogreen':
-                    $devices[$deviceId]['ecoMode'] = $preference['value'] === 'true';
+                    $ecoMode = $preference['value'] === 'true';
                     cache::set('hitachihikumo::ecoId', $preference['oid']);
                     break;
             }
         }
+
+        foreach ($devices as $id => $device) {
+            $devices[$id]['ecoMode'] = $ecoMode;
+        }
+
         return $devices;
     }
 
@@ -135,6 +154,87 @@ class HiKumo {
             'setMainOperation', ['off'], $device['url'], 'Set unit ('.$device['label'].') to OFF'
         );
     }
+
+    /** {
+       "label":"ECS",
+       "actions":[{
+       "commands":[{"name":"setControlDHW","parameters":["run"]}],
+       "deviceURL":"modbus://0123-4567-8901/1234567/1#4"
+       }],
+       "internal":false
+    } */
+    public function switchOnDHW(string $deviceId): bool
+    {
+        $device = $this->getDeviceById($deviceId);
+
+        return $this->sendCommand(
+            'setControlDHW', ['run'], $device['url'], 'Set DHW ('.$device['label'].') to ON'
+        );
+    }
+
+    /** {
+       "label":"ECS",
+       "actions":[{
+       "commands":[{"name":"setControlDHW","parameters":["stop"]}],
+       "deviceURL":"modbus://0123-4567-8901/1234567/1#4"
+       }],
+       "internal":false
+    } */
+    public function switchOffDHW(string $deviceId): bool
+    {
+        $device = $this->getDeviceById($deviceId);
+
+        return $this->sendCommand(
+            'setControlDHW', ['stop'], $device['url'], 'Set DHW ('.$device['label'].') to OFF'
+        );
+    }
+
+    /** {
+        "label":"ON modbus://0123-4567-8901/1234567/1#3",
+        "actions":[{
+            "commands":[
+                {"name":"globalControl", "parameters":["manu","heat",20]},
+                {"name":"setAutoManuMode","parameters":["manu"]},
+                {"name":"setHolidayMode","parameters":["off"]}
+            ],
+            "deviceURL":"modbus://0839-7209-2314/8682532/1#3"}],
+            "internal":false
+    } */
+    public function switchOnHeatZone(string $deviceId): bool
+    {
+        $device = $this->getDeviceById($deviceId);
+
+        return $this->sendCommand(
+            'globalControl',
+            ['manu', 'heat', '-1'],
+            $device['url'],
+            'Set heat zone ('.$device['label'].') to ON'
+        );
+    }
+
+    /** {
+        "label":"OFF modbus://0123-4567-8901/1234567/1#3",
+        "actions":[{
+            "commands":[
+                {"name":"globalControl","parameters":["off","fake",-1]},
+                {"name":"setAutoManuMode","parameters":["manu"]},
+                {"name":"setHolidayMode","parameters":["off"]}
+            ],
+        "deviceURL":"modbus://0839-7209-2314/8682532/1#3"}],
+        "internal":false
+    } */
+    public function switchOffHeatZone(string $deviceId): bool
+    {
+        $device = $this->getDeviceById($deviceId);
+
+        return $this->sendCommand(
+            'globalControl',
+            ['off', 'fake', -1],
+            $device['url'],
+            'Set heat zone ('.$device['label'].') to ON'
+        );
+    }
+
 
     public function setEco(bool $onOff): bool
     {
@@ -289,10 +389,10 @@ class HiKumo {
         string $endpoint,
         string $method = 'GET',
         $body = null,
-        bool $requestNewToken = false
+        bool $currentlyRetrying = false
     ): array {
         $token = cache::byKey('hitachihikumo::token')->getValue(null);
-        if(empty($token) || $requestNewToken === true) {
+        if(empty($token) || $currentlyRetrying === true) {
             $this->requestToken();
         }
 
@@ -331,7 +431,9 @@ class HiKumo {
         if(isset($contentData['errorCode'])) {
             switch ($contentData['errorCode']) {
                 case 'RESOURCE_ACCESS_DENIED':
-                    if($requestNewToken === false) {
+                    if($currentlyRetrying === false) {
+                        log::add('hitachihikumo', 'debug', $method.' '.$endpoint.' failed, retying with a new token: '.$content);
+                        cache::byKey('hitachihikumo::token')->remove();
                         $contentData = $this->queryAPI($endpoint, $method, $body, true);
                     } else {
                         log::add('hitachihikumo', 'error', $method.' '.$endpoint.' failed even with a new token: '.$content);
