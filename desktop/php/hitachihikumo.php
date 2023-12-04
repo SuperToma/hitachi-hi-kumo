@@ -44,8 +44,16 @@ $eqLogics = eqLogic::byType($plugin->getId());
 				$opacity = ($eqLogic->getIsEnable()) ? '' : 'disableCard';
               	$onlineColor = ($eqLogic->getCmd(null, "online")) ? "green" : "red";
 				echo '<div class="eqLogicDisplayCard cursor '.$opacity.'" data-eqLogic_id="' . $eqLogic->getId() . '">';
-				echo '<img src="plugins/hitachihikumo/img/hitachi-rak.png">';
-              	echo '<span style="position: absolute; float: right; color: '. $onlineColor . '"><i class="fa fa-plug" aria-hidden="true"></i></span>';
+
+                if($eqLogic->getConfiguration('type') === 'HitachiDHW') {
+                    echo '<img src="plugins/hitachihikumo/img/boiler.png">';
+                } elseif ($eqLogic->getConfiguration('type') === 'HitachiAirToWaterHeatingZone') {
+                    echo '<img src="plugins/hitachihikumo/img/heating-zone.png">';
+                } else {
+                    echo '<img src="plugins/hitachihikumo/img/hitachi-rak.png">';
+                }
+
+              	// echo '<span style="position: absolute; float: right; color: '. $onlineColor . '"><i class="fa fa-plug" aria-hidden="true"></i></span>';
 				echo '<br>';
 				echo '<span class="name">' . $eqLogic->getHumanName(true, true) . '</span>';
 				echo '<span class="hiddenAsCard displayTableRight hidden">';
